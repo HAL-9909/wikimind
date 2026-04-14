@@ -4,7 +4,7 @@
 
 **Karpathy LLM Wiki 方法的生产级实现。**
 
-[![GitHub Stars](https://img.shields.io/github/stars/HAL-9909/wikimind?style=flat-square)](https://github.com/HAL-9909/wikimind/stargazers)
+[![GitHub Stars](https://img.shields.io/github/stars/HAL-9909/llm-wikimind?style=flat-square)](https://github.com/HAL-9909/llm-wikimind/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg?style=flat-square)](https://python.org)
 [![MCP](https://img.shields.io/badge/MCP-compatible-green.svg?style=flat-square)](https://modelcontextprotocol.io)
@@ -68,8 +68,8 @@ AI 构建 Wiki，AI 搜索 Wiki，你只需要提问。
 
 ```bash
 pip3 install qmd
-git clone https://github.com/HAL-9909/wikimind
-cd wikimind
+git clone https://github.com/HAL-9909/llm-wikimind
+cd llm-wikimind
 ```
 
 **2. 初始化知识库**
@@ -272,7 +272,7 @@ keywords: [react, hooks, nextjs, typescript, jsx]
 
 ### 通过 AI（推荐）
 
-安装 [wikimind-ingest skill](https://github.com/HAL-9909/wikimind-skill) 后，直接说：
+安装 [wikimind-ingest skill](https://github.com/HAL-9909/llm-wikimind-skill) 后，直接说：
 
 > "把这篇文章加到我的知识库：[粘贴内容或 URL]"
 
