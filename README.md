@@ -9,6 +9,8 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg?style=flat-square)](https://python.org)
 [![MCP](https://img.shields.io/badge/MCP-compatible-green.svg?style=flat-square)](https://modelcontextprotocol.io)
 
+**English** | [中文](README.zh.md)
+
 *Built on [the methodology](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) that got 17M views and 88K bookmarks in 48 hours.*
 
 </div>
