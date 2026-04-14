@@ -69,19 +69,32 @@ AI 构建 Wiki，AI 搜索 Wiki，你只需要提问。
 ```bash
 pip3 install qmd
 git clone https://github.com/HAL-9909/wikimind
+cd wikimind
 ```
 
-**2. 配置 Wiki 目录**
+**2. 初始化知识库**
+
+WikiMind 提供两种初始化方式：
 
 ```bash
-export WIKIMIND_ROOT="$HOME/Documents/wiki"   # 或任意你喜欢的路径
-mkdir -p "$WIKIMIND_ROOT"
-cp wikimind/CLAUDE.md "$WIKIMIND_ROOT/"
-cp -r wikimind/.wiki-mcp "$WIKIMIND_ROOT/"
-cp -r wikimind/example-domain "$WIKIMIND_ROOT/"
+# 方式 A — 全新创建（交互式，会询问存放位置）
+./wikimind init
+
+# 方式 B — 接管已有的 Markdown 目录
+./wikimind init ~/my-existing-notes --adopt
 ```
 
+`init` 会自动完成：
+- 创建标准知识库目录结构
+- 将 MCP Server 和 Watcher 复制到你的知识库
+- 构建初始 BM25 搜索索引
+- 打印出可直接粘贴到 AI 客户端的配置代码
+
+`--adopt` 模式还会额外扫描每个子目录，为没有 `DOMAIN.md` 的目录自动生成一个（关键词从文件夹名称推导），让你的现有笔记立即可搜索。
+
 **3. 注册 MCP Server**
+
+`init` 命令会打印完整配置。参考如下：
 
 *Claude Desktop* — 添加到 `~/Library/Application Support/Claude/claude_desktop_config.json`：
 
@@ -100,29 +113,73 @@ cp -r wikimind/example-domain "$WIKIMIND_ROOT/"
 *CatDesk / OpenClaw：*
 
 ```bash
-~/.catpaw/bin/catdesk mcp add --name wiki-kb --json '{
+catdesk mcp add --name wiki-kb --json '{
   "command": "python3",
   "args": ["/你的路径/wiki/.wiki-mcp/server.py"],
   "env": {"WIKIMIND_ROOT": "/你的路径/wiki"}
 }'
 ```
 
-**4. 启动自动同步 Watcher**
+**4. 启动 Watcher**
 
 ```bash
-bash ~/Documents/wiki/.wiki-mcp/start-watcher.sh
-
-# 登录时自动启动：
-echo 'bash "$HOME/Documents/wiki/.wiki-mcp/start-watcher.sh" > /dev/null 2>&1' >> ~/.zshrc
+./wikimind start
 ```
 
-**5. 构建第一个索引**
+登录时自动启动：
 
 ```bash
-cd ~/Documents/wiki && qmd index example-domain example-domain
+echo '/path/to/wikimind/wikimind start > /dev/null 2>&1' >> ~/.zshrc
 ```
 
 打开新对话，向 AI 提问，它会优先搜索你的 Wiki。
+
+---
+
+## 自动更新：始终保持同步
+
+WikiMind 内置一个轻量级后台 Watcher，安装后全程自动运行，无需任何手动操作。
+
+```
+你新建了一个领域文件夹
+         │
+         ▼（10 秒内）
+   Watcher 检测到 DOMAIN.md 变化
+         │
+         ▼
+   sync-wiki-cache.sh 自动运行
+         │
+         ▼
+   MCP 工具描述更新
+         │
+         ▼
+   下次对话：AI 已感知新领域，无需重启
+```
+
+以下操作会自动触发同步：
+
+- 新建带 `DOMAIN.md` 的领域目录
+- 编辑已有 `DOMAIN.md`（增删关键词）
+- 删除某个领域
+- AI 调用 `wiki_ingest_note()` 写入新页面
+
+同步会做什么：
+
+- 重新扫描所有领域及其关键词
+- 重建 BM25 搜索索引（`qmd update`）
+- 更新 MCP 工具描述，让 AI 知道哪些领域存在、哪些关键词触发哪个领域
+
+随时查看 Watcher 状态：
+
+```bash
+./wikimind status
+```
+
+查看实时日志：
+
+```bash
+tail -f /你的路径/wiki/.wiki-mcp/watcher.log
+```
 
 ---
 
@@ -130,12 +187,12 @@ cd ~/Documents/wiki && qmd index example-domain example-domain
 
 | | WikiMind（BM25） | 典型 RAG |
 |--|--|--|
-| **安装** | `pip install qmd` | 向量数据库 + Embedding 模型 + 分块流水线 |
+| **安装** | `pip install qmd` + `wikimind init` | 向量数据库 + Embedding 模型 + 分块流水线 |
 | **费用** | 免费，本地运行 | API 费用或 GPU |
 | **延迟** | ~50ms | 200ms–2s |
 | **透明度** | 精确关键词匹配，可审计 | 黑盒余弦相似度 |
 | **知识质量** | 精心整理、结构化、持续改进 | 原始文档，静态 |
-| **索引更新** | 即时（`qmd update`） | 重新 Embed 所有内容 |
+| **索引更新** | 自动（Watcher 后台运行） | 重新 Embed 所有内容 |
 | **隐私** | 100% 本地 | 取决于 Embedding 提供商 |
 
 真正的优势不在于搜索算法，而在于 **Wiki 结构**。Karpathy 的洞见：精心整理的结构化知识，永远胜过原始检索。
@@ -171,6 +228,19 @@ confidence: high   # high | medium | low
 
 ---
 
+## CLI 命令
+
+```
+wikimind init [PATH]           创建新知识库（不填 PATH 则交互式询问）
+wikimind init [PATH] --adopt   接管已有 Markdown 目录
+wikimind start                 启动自动同步 Watcher
+wikimind stop                  停止 Watcher
+wikimind status                查看知识库和 Watcher 状态
+wikimind index                 重建完整搜索索引
+```
+
+---
+
 ## MCP 工具
 
 向任何兼容 MCP 的 AI 客户端暴露 5 个工具：
@@ -202,7 +272,7 @@ keywords: [react, hooks, nextjs, typescript, jsx]
 
 ### 通过 AI（推荐）
 
-安装 [wiki-ingest skill](https://github.com/HAL-9909/wikimind-skill) 后，直接说：
+安装 [wikimind-ingest skill](https://github.com/HAL-9909/wikimind-skill) 后，直接说：
 
 > "把这篇文章加到我的知识库：[粘贴内容或 URL]"
 
@@ -223,7 +293,7 @@ wiki_ingest_note(
 
 ```bash
 cp -r /你的文档路径 ~/Documents/wiki/my-domain/refs/
-cd ~/Documents/wiki && qmd update
+wikimind index
 ```
 
 ---

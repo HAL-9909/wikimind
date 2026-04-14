@@ -4,7 +4,7 @@
 
 **The production-ready implementation of Karpathy's LLM Wiki pattern.**
 
-[![GitHub Stars](https://img.shields.io/github/stars/liuxiangmian/wikimind?style=flat-square)](https://github.com/liuxiangmian/wikimind/stargazers)
+[![GitHub Stars](https://img.shields.io/github/stars/HAL-9909/wikimind?style=flat-square)](https://github.com/HAL-9909/wikimind/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg?style=flat-square)](https://python.org)
 [![MCP](https://img.shields.io/badge/MCP-compatible-green.svg?style=flat-square)](https://modelcontextprotocol.io)
@@ -68,20 +68,33 @@ Your AI builds the Wiki. Your AI searches the Wiki. You just ask questions.
 
 ```bash
 pip3 install qmd
-git clone https://github.com/liuxiangmian/wikimind
+git clone https://github.com/HAL-9909/wikimind
+cd wikimind
 ```
 
-**2. Set up your wiki directory**
+**2. Initialize your wiki**
+
+WikiMind gives you two paths:
 
 ```bash
-export WIKIMIND_ROOT="$HOME/Documents/wiki"   # or any path you prefer
-mkdir -p "$WIKIMIND_ROOT"
-cp wikimind/CLAUDE.md "$WIKIMIND_ROOT/"
-cp -r wikimind/.wiki-mcp "$WIKIMIND_ROOT/"
-cp -r wikimind/example-domain "$WIKIMIND_ROOT/"
+# Option A — Create a fresh wiki (interactive, asks where to put it)
+./wikimind init
+
+# Option B — Adopt an existing Markdown directory
+./wikimind init ~/my-existing-notes --adopt
 ```
 
+`init` will:
+- Create the standard wiki directory structure
+- Copy the MCP server and watcher into your wiki
+- Build the initial BM25 search index
+- Print the exact config snippet to paste into your AI client
+
+`--adopt` will additionally scan every subdirectory and auto-generate a `DOMAIN.md` for each one (with keywords derived from the folder name), so your existing notes are immediately searchable.
+
 **3. Register the MCP server**
+
+The `init` command prints the exact snippet. For reference:
 
 *Claude Desktop* — add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
@@ -100,29 +113,73 @@ cp -r wikimind/example-domain "$WIKIMIND_ROOT/"
 *CatDesk / OpenClaw:*
 
 ```bash
-~/.catpaw/bin/catdesk mcp add --name wiki-kb --json '{
+catdesk mcp add --name wiki-kb --json '{
   "command": "python3",
   "args": ["/YOUR/PATH/wiki/.wiki-mcp/server.py"],
   "env": {"WIKIMIND_ROOT": "/YOUR/PATH/wiki"}
 }'
 ```
 
-**4. Start the auto-sync watcher**
+**4. Start the watcher**
 
 ```bash
-bash ~/Documents/wiki/.wiki-mcp/start-watcher.sh
-
-# Auto-start on login:
-echo 'bash "$HOME/Documents/wiki/.wiki-mcp/start-watcher.sh" > /dev/null 2>&1' >> ~/.zshrc
+./wikimind start
 ```
 
-**5. Build your first index**
+Auto-start on login:
 
 ```bash
-cd ~/Documents/wiki && qmd index example-domain example-domain
+echo '/path/to/wikimind/wikimind start > /dev/null 2>&1' >> ~/.zshrc
 ```
 
 Open a new conversation. Ask your AI anything. It will search your wiki first.
+
+---
+
+## Auto-update: always in sync
+
+WikiMind runs a lightweight background watcher that keeps everything in sync automatically — no manual steps required after setup.
+
+```
+You add a new domain folder
+         │
+         ▼ (within 10 seconds)
+   watcher detects DOMAIN.md change
+         │
+         ▼
+   sync-wiki-cache.sh runs
+         │
+         ▼
+   MCP tool descriptions updated
+         │
+         ▼
+   Next conversation: AI already knows the new domain
+```
+
+What triggers an automatic sync:
+
+- You create a new domain folder with a `DOMAIN.md`
+- You edit an existing `DOMAIN.md` (add/remove keywords)
+- You delete a domain
+- The AI calls `wiki_ingest_note()` to write a new page
+
+What the sync does:
+
+- Re-scans all domains and their keywords
+- Rebuilds the BM25 search index (`qmd update`)
+- Updates the MCP tool descriptions so the AI knows which domains exist and what keywords trigger each one
+
+You can check the watcher status at any time:
+
+```bash
+./wikimind status
+```
+
+And view the live log:
+
+```bash
+tail -f /path/to/wiki/.wiki-mcp/watcher.log
+```
 
 ---
 
@@ -130,12 +187,12 @@ Open a new conversation. Ask your AI anything. It will search your wiki first.
 
 | | WikiMind (BM25) | Typical RAG |
 |--|--|--|
-| **Setup** | `pip install qmd` | Vector DB + embedding model + chunking pipeline |
+| **Setup** | `pip install qmd` + `wikimind init` | Vector DB + embedding model + chunking pipeline |
 | **Cost** | Free, runs locally | API costs or GPU required |
 | **Latency** | ~50ms | 200ms–2s |
 | **Transparency** | Exact keyword match, auditable | Black-box cosine similarity |
 | **Knowledge quality** | Curated, structured, always improving | Raw docs, static |
-| **Index update** | Instant (`qmd update`) | Re-embed everything |
+| **Index update** | Automatic (watcher) | Re-embed everything |
 | **Privacy** | 100% local | Depends on your embedding provider |
 
 The real advantage isn't the search algorithm — it's the **Wiki structure**. Karpathy's insight: curated, structured knowledge beats raw retrieval every time.
@@ -198,11 +255,24 @@ Within 10 seconds, the watcher detects the change and updates the MCP tool descr
 
 ---
 
+## CLI reference
+
+```
+wikimind init [PATH]           Create a new wiki (interactive if PATH omitted)
+wikimind init [PATH] --adopt   Adopt an existing Markdown directory
+wikimind start                 Start the auto-sync watcher
+wikimind stop                  Stop the watcher
+wikimind status                Show wiki and watcher status
+wikimind index                 Rebuild the full search index
+```
+
+---
+
 ## Adding knowledge
 
 ### Via AI (recommended)
 
-With the [wiki-ingest skill](https://github.com/liuxiangmian/wikimind-skill) installed in CatDesk/OpenClaw:
+With the [wikimind-ingest skill](https://github.com/HAL-9909/wikimind-skill) installed in CatDesk/OpenClaw:
 
 > "Add this article to my knowledge base: [paste content or URL]"
 
@@ -223,7 +293,7 @@ wiki_ingest_note(
 
 ```bash
 cp -r /path/to/your/docs ~/Documents/wiki/my-domain/refs/
-cd ~/Documents/wiki && qmd update
+wikimind index
 ```
 
 ---
