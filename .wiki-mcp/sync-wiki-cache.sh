@@ -10,7 +10,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SERVER_PY="$SCRIPT_DIR/server.py"
-CACHE_DIR="$HOME/.catpaw/projects/Users-liuxiangmian-.openclaw-agency-agents-hal/mcps/sdk-wiki-kb/tools"
+# 优先从环境变量读取缓存目录，默认使用 openclaw 标准路径
+CACHE_DIR="${WIKI_CACHE_DIR:-$HOME/.openclaw/cache/wiki-kb/tools}"
 LOG_FILE="$SCRIPT_DIR/sync.log"
 TMP_OUT=$(mktemp /tmp/wiki-sync-XXXXXX.json)
 trap 'rm -f "$TMP_OUT"' EXIT
@@ -26,8 +27,9 @@ if [[ ! -f "$SERVER_PY" ]]; then
 fi
 
 if [[ ! -d "$CACHE_DIR" ]]; then
-    log "ERROR: CatDesk 缓存目录不存在: $CACHE_DIR"
+    log "ERROR: 缓存目录不存在: $CACHE_DIR"
     log "  可能原因：wiki-kb MCP server 尚未注册，或项目路径已变化"
+    log "  提示：可通过 WIKI_CACHE_DIR 环境变量自定义缓存路径"
     exit 1
 fi
 
